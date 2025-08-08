@@ -4,25 +4,14 @@ import { usePathname } from 'next/navigation'
 import { FiGrid, FiUser, FiBell, FiLogOut, FiMenu, FiX } from 'react-icons/fi'
 import { useAuth } from './AuthProvider'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, Variants } from 'framer-motion'
 
 export default function Sidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const [clickedItem, setClickedItem] = useState<string | null>(null)
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   const navItems = [
     { name: 'Dashboard', href: '/dashboard', icon: FiGrid },
@@ -59,23 +48,19 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Hamburger Button */}
-      {isMobile && (
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-[#333333] text-white"
-          aria-label="Toggle menu"
-        >
-          {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-        </button>
-      )}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-[#333333] text-white"
+        aria-label="Toggle menu"
+      >
+        {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+      </button>
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex-col bg-[#333333] ${
-          isMobile
-            ? `transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]`
-            : 'hidden md:flex'
-        }`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex-col bg-[#333333] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 md:flex`}
       >
         <div className="flex items-center justify-center py-8 mt-3">
           <Image

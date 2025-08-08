@@ -1,11 +1,18 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { useRouter } from 'next/navigation'
+
+interface UserData {
+  uid: string
+  email: string
+}
 
 interface AuthContextType {
   isAuthenticated: boolean
   setIsAuthenticated: (value: boolean) => void
+  userData: UserData | null
+  setUserData: (data: UserData | null) => void
   logout: () => void
 }
 
@@ -13,34 +20,20 @@ const AuthContext = createContext<AuthContextType | null>(null)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userData, setUserData] = useState<UserData | null>(null)
   const router = useRouter()
-
-  // Check localStorage when the app loads
-  useEffect(() => {
-    const uid = localStorage.getItem('uid')
-    const email = localStorage.getItem('email')
-    console.log('Checking localStorage on app load:', { uid, email })
-    if (uid && email) {
-      console.log('Data found in localStorage, setting isAuthenticated to true')
-      setIsAuthenticated(true)
-    } else {
-      console.log('No valid data found in localStorage')
-      setIsAuthenticated(false)
-    }
-  }, [])
 
   const logout = () => {
     console.log('Logout function called')
     setIsAuthenticated(false)
-    console.log('Removing uid and email from localStorage')
-    localStorage.removeItem('uid')
-    localStorage.removeItem('email')
+    setUserData(null)
+    console.log('Cleared authentication state and user data')
     console.log('Navigating to login page')
     router.push('/login')
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, userData, setUserData, logout }}>
       {children}
     </AuthContext.Provider>
   )

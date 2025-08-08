@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React from 'react'
 import { useFormik } from 'formik'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
@@ -12,18 +12,16 @@ import { useAuth } from '@/component/AuthProvider'
 interface FormValues {
   email: string
   password: string
-  rememberMe: boolean
 }
 
 export default function Login() {
   const router = useRouter()
-  const { setIsAuthenticated } = useAuth()
+  const { setIsAuthenticated, setUserData } = useAuth()
 
   const formik = useFormik<FormValues>({
     initialValues: {
       email: '',
       password: '',
-      rememberMe: false,
     },
     validate: (values) => {
       const errors: Partial<FormValues> = {}
@@ -45,13 +43,6 @@ export default function Login() {
         setSubmitting(true)
         console.log('Login form submitted:', values)
 
-        // Store email in localStorage if rememberMe is checked
-        if (values.rememberMe) {
-          localStorage.setItem('rememberedEmail', values.email)
-        } else {
-          localStorage.removeItem('rememberedEmail')
-        }
-
         const adminCollection = collection(db, 'admin')
         const q = query(
           adminCollection,
@@ -66,12 +57,9 @@ export default function Login() {
           const userId = querySnapshot.docs[0].id
           console.log('User data:', { userId, userData })
 
-          localStorage.setItem('uid', userId)
-          localStorage.setItem('email', values.email)
-          console.log('localStorage updated:', { uid: userId, email: values.email })
-
           setIsAuthenticated(true)
-          console.log('isAuthenticated set to true')
+          setUserData({ uid: userId, email: values.email })
+          console.log('isAuthenticated set to true, userData set:', { uid: userId, email: values.email })
 
           toast.success('Login successful!', {
             position: 'top-right',
@@ -100,15 +88,6 @@ export default function Login() {
       }
     },
   })
-
-  // Load remembered email from localStorage on component mount
-  useEffect(() => {
-    const rememberedEmail = localStorage.getItem('rememberedEmail')
-    if (rememberedEmail) {
-      formik.setFieldValue('email', rememberedEmail)
-      formik.setFieldValue('rememberMe', true)
-    }
-  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f9f9f9]">
@@ -154,20 +133,6 @@ export default function Login() {
             ) : null}
           </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="rememberMe"
-              id="rememberMe"
-              className="h-4 w-4 text-teal-500 focus:ring-teal-500 border-gray-300 rounded opacity-50"
-              checked={formik.values.rememberMe}
-              onChange={formik.handleChange}
-            />
-            <label htmlFor="rememberMe" className="ml-2 text-sm text-gray-600 opacity-50">
-              Remember Me
-            </label>
-          </div>
-
           <button
             type="submit"
             disabled={formik.isSubmitting}
@@ -208,97 +173,3 @@ export default function Login() {
     </div>
   )
 }
-
-
-
-
-// signup  
-// "use client";
-
-// import React, { useState } from "react";
-// import { createUserWithEmailAndPassword } from "firebase/auth";
-// import { collection, doc, setDoc, getDocs } from "firebase/firestore";
-// import { auth, firestore } from "@/config/Firebase";
-// import EmailIcon from "@mui/icons-material/Email";
-// import { AiFillUnlock } from "react-icons/ai";
-
-// const Login = () => {
-//   const [email, setEmail] = useState("");
-//   const [password, setPassword] = useState("");
-
-//   const handleSignUp = async (e) => {
-//     e.preventDefault();
-
-//     try {
-//       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-//       const userDetails = userCredential.user;
-//       const userId = userDetails.uid;
-
-//       const user = {
-//         email: email,
-//         password: password, // 🔴 Not secure, for learning/demo only!
-//       };
-
-//       const usersCollection = collection(firestore, "admin");
-//       const userDocumentRef = doc(usersCollection, userId);
-
-//       await setDoc(userDocumentRef, user);
-
-//       console.log("Sign-up successful!");
-
-//       const querySnapshot = await getDocs(usersCollection);
-//       querySnapshot.forEach((doc) => {
-//         console.log(doc.id, " => ", doc.data());
-//       });
-//     } catch (err) {
-//       if (err.code === "auth/email-already-in-use") {
-//         console.error("Email is already in use. Please log in or use a different email.");
-//       } else {
-//         console.error("Sign-up error:", err);
-//       }
-//     }
-//   };
-
-//   return (
-//     <div className="container rounded-md bg-gray-100 p-6">
-//       <form onSubmit={handleSignUp}>
-//         <div className="flex justify-center mt-3">
-//           <div className="relative">
-//             <EmailIcon className="absolute left-3 top-4 text-gray-500 opacity-75" />
-//             <input
-//               className="w-80 pl-10 pr-3 py-3 rounded-full bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-//               type="text"
-//               placeholder="Email"
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//             />
-//           </div>
-//         </div>
-
-//         <div className="flex justify-center mt-3">
-//           <div className="relative">
-//             <AiFillUnlock className="absolute left-3 top-4 h-6 w-6 text-gray-500 opacity-75" />
-//             <input
-//               className="w-80 pl-10 pr-3 py-3 rounded-full bg-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-//               type="password"
-//               placeholder="Password"
-//               value={password}
-//               onChange={(e) => setPassword(e.target.value)}
-//             />
-//           </div>
-//         </div>
-
-//         <div className="flex justify-center mt-3">
-//           <button
-//             className="w-80 p-3 rounded-full bg-blue-600 text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-//             type="submit"
-//           >
-//             Sign Up
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default Login;
