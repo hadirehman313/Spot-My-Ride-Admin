@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Spot My Ride',
-  description: 'ایڈمن ڈیش بورڈ',
+  description: 'A Vehicle Parking Management System',
 }
 
 export default function RootLayout({

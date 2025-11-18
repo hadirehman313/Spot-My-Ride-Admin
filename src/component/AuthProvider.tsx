@@ -1,7 +1,8 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Cookies from 'js-cookie'
 
 interface UserData {
   uid: string
@@ -23,13 +24,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userData, setUserData] = useState<UserData | null>(null)
   const router = useRouter()
 
+  // Check cookies on mount
+  useEffect(() => {
+    const uid = Cookies.get('uid')
+    const email = Cookies.get('email')
+
+    if (uid && email) {
+      setIsAuthenticated(true)
+      setUserData({ uid, email })
+    } else {
+      setIsAuthenticated(false)
+      setUserData(null)
+      // Optional: redirect to login if trying to access protected page
+      if (window.location.pathname !== '/login') {
+        router.replace('/login')
+      }
+    }
+  }, [router])
+
   const logout = () => {
-    console.log('Logout function called')
+    Cookies.remove('uid')
+    Cookies.remove('email')
     setIsAuthenticated(false)
     setUserData(null)
-    console.log('Cleared authentication state and user data')
-    console.log('Navigating to login page')
-    router.push('/login')
+    router.replace('/login')
   }
 
   return (
@@ -42,7 +60,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
-    console.error('useAuth must be used within an AuthProvider')
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context

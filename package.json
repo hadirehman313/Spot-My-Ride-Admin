@@ -50,6 +50,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/aos": "^3.0.7",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20.19.9",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19",
