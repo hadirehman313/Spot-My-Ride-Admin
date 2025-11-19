@@ -12,6 +12,9 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { CiSearch } from "react-icons/ci";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import axios from "axios"; // ← Yeh add karna zaroori hai
 
 type NotificationType = "Email" | "Push";
 
@@ -25,9 +28,11 @@ type NotificationRow = {
   userId?: string;
 };
 
+const PUSH_API_URL = "https://spotmyridesendnofications.vercel.app/api/send-notification";
+
 export default function Notifications() {
   const [type, setType] = useState<NotificationType>("Email");
-  const [title, setTitle] = useState(""); // New Title Field
+  const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [search, setSearch] = useState("");
@@ -37,10 +42,7 @@ export default function Notifications() {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const q = query(
-        collection(db, "notifications"),
-        orderBy("createdAt", "desc")
-      );
+      const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
       const fetched: NotificationRow[] = [];
 
@@ -60,6 +62,7 @@ export default function Notifications() {
       setNotifications(fetched);
     } catch (error) {
       console.error("Error fetching notifications:", error);
+      toast.error("Failed to fetch notifications");
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,6 @@ export default function Notifications() {
     fetchNotifications();
   }, []);
 
-  // Search filter
   const filteredHistory = useMemo(() => {
     const q = search.toLowerCase();
     return notifications.filter(
@@ -80,7 +82,6 @@ export default function Notifications() {
     );
   }, [notifications, search]);
 
-  // Format Date
   const formatDateTime = (timestamp: any) => {
     if (!timestamp) return { date: "", time: "" };
     const date = timestamp.toDate();
@@ -90,87 +91,111 @@ export default function Notifications() {
     };
   };
 
-  // Send Notification
+  // ← YEH SABSE MAYNE RAKHNE WALA FUNCTION HAI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) {
-      alert("Title and Message are required!");
+      toast.error("Title and Message are required!");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Fetch all users with deviceToken (for future push if needed)
+      // 1. Sab users fetch karo jinke paas deviceToken hai
       const usersSnapshot = await getDocs(collection(db, "users"));
-      const usersWithToken: { userId: string; token: string }[] = [];
+      const usersWithToken: { userId: string; deviceToken?: string }[] = [];
 
       usersSnapshot.forEach((doc) => {
         const data = doc.data();
         if (data.deviceToken) {
           usersWithToken.push({
             userId: doc.id,
-            token: data.deviceToken,
+            deviceToken: data.deviceToken,
           });
         }
       });
 
-      if (usersWithToken.length === 0) {
-        alert(
-          "No users found with a device token (still saving notification)."
-        );
-      }
-
-      // Save notification for each user
-      for (const user of usersWithToken) {
-        await addDoc(collection(db, "notifications"), {
-          userId: user.userId,
+      // 2. Har user ke liye Firestore mein notification save karo (dono types ke liye)
+      const savePromises = usersSnapshot.docs.map((doc) =>
+        addDoc(collection(db, "notifications"), {
+          userId: doc.id,
           type: type,
           title: title.trim(),
           description: message.trim(),
           isRead: false,
           createdAt: serverTimestamp(),
-        });
+        })
+      );
 
-        // Here you can trigger actual push notification using user.token if needed
+      await Promise.all(savePromises);
+
+      // 3. Agar Push type hai → API call karo
+      if (type === "Push" && usersWithToken.length > 0) {
+        const payload = {
+          title: title.trim(),
+          text: message.trim(),
+          users: usersWithToken.map((u) => ({ deviceToken: u.deviceToken })),
+        };
+
+        try {
+          await axios.post(PUSH_API_URL, payload, {
+            headers: { "Content-Type": "application/json" },
+          });
+          toast.success("Push notifications sent to devices!");
+        } catch (apiError: any) {
+          console.error("Push API Error:", apiError.response?.data || apiError.message);
+          toast.warn("Notifications saved but some push failed");
+        }
+      } else if (type === "Push" && usersWithToken.length === 0) {
+        toast.info("No device tokens found – Push skipped, but saved in history");
       }
 
-      // Reset form
+      // Success
+      toast.success("Notification processed successfully!");
       setTitle("");
       setMessage("");
       setType("Email");
-      alert("Notification sent successfully to all users!");
       fetchNotifications();
-    } catch (error) {
-      console.error("Error sending notification:", error);
-      alert("Failed to send notification");
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error("Something went wrong: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // Skeleton Loader (same as before)
+  const SkeletonLoader = () => (
+    <div className="space-y-6 animate-pulse py-6">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex justify-between space-x-4">
+          <div className="w-20 h-4 bg-gray-200 rounded"></div>
+          <div className="flex-1 h-4 bg-gray-200 rounded"></div>
+          <div className="w-32 h-4 bg-gray-200 rounded"></div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-800">
-              Notifications
-            </h1>
-            <p className="text-sm text-gray-500 opacity-35 mt-2">
-              You can send the users notifications.
+            <h1 className="text-2xl font-semibold text-gray-800">Notifications</h1>
+            <p className="text-sm text-gray-500 opacity-75 mt-2">
+              Send Email or Push notifications to all users
             </p>
           </div>
         </div>
 
-        {/* Search */}
         <div className="flex justify-end">
           <div className="relative w-full sm:w-72">
             <input
               type="text"
-              placeholder="Search here"
-              className="w-full rounded-xs border border-gray-200 bg-white py-3 pl-3 pr-9 text-sm outline-none focus:border-gray-400 focus:ring-0 shadow-[0_4px_4px_rgba(0,0,0,0.04)]"
+              placeholder="Search notifications..."
+              className="w-full rounded-xs border border-gray-200 bg-white py-3 pl-3 pr-9 text-sm outline-none focus:border-gray-400 shadow-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -178,65 +203,49 @@ export default function Notifications() {
           </div>
         </div>
 
-        {/* Main Card */}
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Send Notification */}
+            {/* Send Form */}
             <section>
               <h2 className="text-lg font-semibold text-gray-800 mb-6">
                 Send Notifications
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Type */}
                 <div>
-                  <div className="relative">
-                    <select
-                      value={type}
-                      onChange={(e) =>
-                        setType(e.target.value as NotificationType)
-                      }
-                      className="w-full appearance-none rounded-md border border-gray-200 bg-white px-4 py-5 text-sm text-gray-700 outline-none focus:border-gray-400 shadow-[0_0_20px_rgba(0,0,0,0.1)]"
-                    >
-                      <option value="Email">Email</option>
-                      <option value="Push">Push</option>
-                    </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      ▼
-                    </span>
-                  </div>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value as NotificationType)}
+                    className="w-full appearance-none rounded-md border border-gray-200 bg-white px-4 py-5 text-sm outline-none focus:border-gray-400"
+                  >
+                    <option value="Email">Email Notification</option>
+                    <option value="Push">Push Notification (Real Device)</option>
+                  </select>
                 </div>
 
-                {/* Title Input */}
-                <div>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter  Title"
-                    className="w-full rounded-md border border-gray-200 bg-white px-4 py-5 text-sm text-gray-700 shadow-[0_0_20px_#0000001A] outline-none focus:border-gray-400"
-                    required
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Enter Title"
+                  className="w-full rounded-md border border-gray-200 bg-white px-4 py-5 text-sm shadow-sm outline-none focus:border-gray-400"
+                  required
+                />
 
-                {/* Message */}
-                <div>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={6}
-                    placeholder="Write Message / Body"
-                    className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-[0_0_20px_#0000001A] outline-none focus:border-gray-400 resize-none"
-                    required
-                  />
-                </div>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows={6}
+                  placeholder="Write your message here..."
+                  className="w-full rounded-md border border-gray-200 bg-white px-4 py-3 text-sm resize-none outline-none focus:border-gray-400 shadow-sm"
+                  required
+                />
 
-                {/* Send Button */}
                 <div className="flex justify-center">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full sm:w-72 rounded-xs bg-[#00A085] py-3 text-white font-medium hover:bg-[#008f75] transition-colors disabled:opacity-70"
+                    className="w-full sm:w-72 rounded-xs bg-[#00A085] py-3 text-white font-medium hover:bg-[#008f75] disabled:opacity-70 transition"
                   >
                     {loading ? "Sending..." : "Send Notification"}
                   </button>
@@ -244,21 +253,19 @@ export default function Notifications() {
               </form>
             </section>
 
-            {/* Notifications History */}
+            {/* History Table */}
             <section>
               <h2 className="text-lg font-semibold text-gray-800 mb-6">
-                Notifications History
+                Sent History
               </h2>
 
               {loading && notifications.length === 0 ? (
-                <p className="text-center text-gray-500 py-10">
-                  Loading notifications...
-                </p>
+                <SkeletonLoader />
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left border-collapse">
+                  <table className="w-full min-w-[520px] text-left">
                     <thead>
-                      <tr className="text-xs uppercase tracking-wide text-gray-500">
+                      <tr className="text-xs uppercase text-gray-500">
                         <th className="py-3">Type</th>
                         <th className="py-3">Message</th>
                         <th className="py-3">Date & Time</th>
@@ -267,49 +274,35 @@ export default function Notifications() {
                     <tbody className="text-sm text-gray-700">
                       {filteredHistory.length === 0 ? (
                         <tr>
-                          <td
-                            colSpan={3}
-                            className="py-10 text-center text-gray-400"
-                          >
-                            {search
-                              ? "No matching notifications found"
-                              : "No notifications yet"}
+                          <td colSpan={3} className="py-10 text-center text-gray-400">
+                            {search ? "No results" : "No notifications sent yet"}
                           </td>
                         </tr>
                       ) : (
                         filteredHistory.map((notif) => {
-                          const { date, time } = formatDateTime(
-                            notif.createdAt
-                          );
+                          const { date, time } = formatDateTime(notif.createdAt);
                           return (
-                            <tr
-                              key={notif.id}
-                              className="border-t border-gray-100"
-                            >
-                              <td className="py-3 align-top">
+                            <tr key={notif.id} className="border-t">
+                              <td className="py-3">
                                 <span
-                                  className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                                    notif.type === "Email"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-purple-100 text-purple-800"
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    notif.type === "Push"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-blue-100 text-blue-800"
                                   }`}
                                 >
                                   {notif.type}
                                 </span>
                               </td>
-
-                              <td className="py-3 align-top max-w-xs">
+                              <td className="py-3 max-w-xs">
                                 <div className="font-medium">{notif.title}</div>
-                                <div className="text-gray-500 text-xs mt-1">
+                                <div className="text-xs text-gray-500 mt-1">
                                   {notif.description}
                                 </div>
                               </td>
-
-                              <td className="py-3 align-top whitespace-nowrap">
+                              <td className="py-3 text-xs whitespace-nowrap">
                                 <div>{date}</div>
-                                <div className="text-gray-400 text-xs">
-                                  {time}
-                                </div>
+                                <div className="text-gray-400">{time}</div>
                               </td>
                             </tr>
                           );
