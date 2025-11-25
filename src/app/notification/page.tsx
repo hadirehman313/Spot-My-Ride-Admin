@@ -14,7 +14,7 @@ import {
 import { CiSearch } from "react-icons/ci";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from "axios"; // ← Yeh add karna zaroori hai
+import axios from "axios"; 
 
 type NotificationType = "Email" | "Push";
 

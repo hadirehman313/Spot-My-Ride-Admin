@@ -573,10 +573,10 @@ export default function User() {
                       {selectedUser?.active ? "Suspended" : "Active"}
                     </span>
                   </p>
-                  <p className="flex justify-between">
+                  {/* <p className="flex justify-between">
                     <span>Last Active Date:</span>{" "}
                     {selectedUser?.lastActive || "N/A"}
-                  </p>
+                  </p> */}
                   <p className="flex justify-between">
                     <span>Total Vehicles:</span>{" "}
                     {selectedUser?.totalVehicles || "N/A"}
@@ -585,14 +585,14 @@ export default function User() {
                     <span>Joining Date:</span>{" "}
                     {selectedUser?.joiningDate || "N/A"}
                   </p>
-                  <p className="flex justify-between">
+                  {/* <p className="flex justify-between">
                     <span>Total Spots Saved:</span>{" "}
                     {selectedUser?.totalSpots || "N/A"}
                   </p>
                   <p className="flex justify-between">
                     <span>Subscription Info:</span>{" "}
                     {selectedUser?.subscription || "N/A"}
-                  </p>
+                  </p> */}
                   <motion.div variants={modalContentVariants} className="mt-4">
                     <span className="font-bold">List of Subscriptions</span>
                     <table className="w-full mt-2 border-collapse">
