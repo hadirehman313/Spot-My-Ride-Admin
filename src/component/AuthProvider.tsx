@@ -24,7 +24,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userData, setUserData] = useState<UserData | null>(null)
   const router = useRouter()
 
-  // Check cookies on mount
   useEffect(() => {
     const uid = Cookies.get('uid')
     const email = Cookies.get('email')
@@ -35,7 +34,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } else {
       setIsAuthenticated(false)
       setUserData(null)
-      // Optional: redirect to login if trying to access protected page
       if (window.location.pathname !== '/login') {
         router.replace('/login')
       }
