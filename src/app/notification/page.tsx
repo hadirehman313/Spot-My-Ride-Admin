@@ -14,7 +14,8 @@ import {
 import { CiSearch } from "react-icons/ci";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios from "axios"; 
+import axios from "axios";
+import moment from "moment"; // Import moment
 
 type NotificationType = "Email" | "Push";
 
@@ -82,16 +83,25 @@ export default function Notifications() {
     );
   }, [notifications, search]);
 
+  // Updated formatDateTime function using moment
   const formatDateTime = (timestamp: any) => {
     if (!timestamp) return { date: "", time: "" };
-    const date = timestamp.toDate();
-    return {
-      date: date.toLocaleDateString("en-GB"),
-      time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
+    
+    try {
+      const date = timestamp.toDate();
+      
+      // Using moment to format date as 3/17/2025
+      return {
+        date: moment(date).format("M/D/YYYY"), // 3/17/2025 format
+        time: moment(date).format("hh:mm A"), // 12:30 PM format
+      };
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return { date: "", time: "" };
+    }
   };
 
-  // ← YEH SABSE MAYNE RAKHNE WALA FUNCTION HAI
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) {
@@ -102,7 +112,7 @@ export default function Notifications() {
     setLoading(true);
 
     try {
-      // 1. Sab users fetch karo jinke paas deviceToken hai
+      // 1. Fetch all users with deviceToken
       const usersSnapshot = await getDocs(collection(db, "users"));
       const usersWithToken: { userId: string; deviceToken?: string }[] = [];
 
@@ -116,7 +126,7 @@ export default function Notifications() {
         }
       });
 
-      // 2. Har user ke liye Firestore mein notification save karo (dono types ke liye)
+      // 2. Save notification in Firestore for all users
       const savePromises = usersSnapshot.docs.map((doc) =>
         addDoc(collection(db, "notifications"), {
           userId: doc.id,
@@ -130,7 +140,7 @@ export default function Notifications() {
 
       await Promise.all(savePromises);
 
-      // 3. Agar Push type hai → API call karo
+      // 3. If Push type → Call API
       if (type === "Push" && usersWithToken.length > 0) {
         const payload = {
           title: title.trim(),
@@ -165,7 +175,7 @@ export default function Notifications() {
     }
   };
 
-  // Skeleton Loader (same as before)
+  // Skeleton Loader
   const SkeletonLoader = () => (
     <div className="space-y-6 animate-pulse py-6">
       {[1, 2, 3, 4, 5].map((i) => (
