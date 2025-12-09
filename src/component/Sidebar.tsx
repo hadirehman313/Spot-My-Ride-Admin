@@ -40,7 +40,7 @@ export default function Sidebar() {
       >
         <div className="flex items-center justify-center py-8">
           <Image
-            src="/assets/logo.png"
+            src="/assets/logos.png"
             alt="Logo"
             width={160}
             height={60}
@@ -160,7 +160,7 @@ export default function Sidebar() {
 //       >
 //         <div className="flex items-center justify-center py-8 mt-3">
 //           <Image
-//             src="/assets/logo.png"
+//             src="/assets/logos.png"
 //             alt="Spot My Ride Logo"
 //             width={150}
 //             height={50}

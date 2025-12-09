@@ -94,7 +94,7 @@ export default function Login() {
 
         <div className="flex justify-center mb-8">
           <Image
-            src="/assets/logo.png"
+            src="/assets/logos.png"
             alt="Logo"
             width={220}
             height={100}
@@ -269,7 +269,7 @@ export default function Login() {
 //         {/* Logo */}
 //         <div className="flex justify-center mb-8 p-4">
 //           <Image
-//             src="/assets/logo.png"
+//             src="/assets/logos.png"
 //             alt="Logo"
 //             width={220}
 //             height={100}
