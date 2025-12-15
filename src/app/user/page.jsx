@@ -142,7 +142,6 @@ export default function User() {
   };
 
   const openDetailsModal = (user) => {
-    console.log("Selected User Details:", user);
     setSelectedUser(user);
     setIsDetailsModalOpen(true);
     setOpenDropdown(null);
@@ -172,17 +171,16 @@ export default function User() {
     }
 
     if (typeof date === "string") {
-      // Remove "at " and timezone info for better parsing if needed
-      const cleanDate = date.replace(" at ", " ").split(" UTC")[0];
+      // Handle format: "December 15, 2025 at 2:54:49 PM UTC+5"
+      // We remove "at" and everything after "AM" or "PM" if possible, or just try to parse the clean string.
+      // A simple strategy is to remove " at " and the UTC part.
+      let cleanDate = date.replace(" at ", " ");
+      // Remove UTC offset like " UTC+5"
+      cleanDate = cleanDate.replace(/ UTC[+\-]\d+/, "");
+
       const parsedDate = new Date(cleanDate);
       if (!isNaN(parsedDate.getTime())) {
         return parsedDate.toLocaleDateString("en-US");
-      }
-
-      // Fallback for original string if cleaning didn't help
-      const originalParse = new Date(date);
-      if (!isNaN(originalParse.getTime())) {
-        return originalParse.toLocaleDateString("en-US");
       }
     }
 
@@ -243,66 +241,80 @@ export default function User() {
         });
         return acc;
       }, {});
-      console.log("Total Subscriptions Fetched:", subscriptionsSnapshot.size);
-      if (!subscriptionsSnapshot.empty) {
-        console.log("Sample Subscription Data:", subscriptionsSnapshot.docs[0].data());
-      }
 
       const subscriptionsByUserId = subscriptionsSnapshot.docs.reduce(
         (acc, doc) => {
           const data = doc.data();
+          // Ensure we trim whitespace and handle potential missing IDs
           const userId = (data.userId || "N/A").trim();
-
-          // Debugging log for specific user IDs or all
-          // console.log(`Subscription for UserID: ${userId}`); 
 
           if (!acc[userId]) {
             acc[userId] = [];
           }
           acc[userId].push({
+            // MAPPING BASED ON UPLOADED IMAGE:
             purchaseDate: formatDate(data.purchaseDate || data.purchaseTimestamp),
             expiryDate: formatDate(data.expiryDate),
             packageId: data.packageId || "N/A",
             packageName: data.packageName || "N/A",
             price: data.price || "N/A",
+            packageId: data.packageId || "N/A",
+            packageName: data.packageName || "N/A",
+            price: data.price || "N/A",
+            platform:
+              data.platform === "ios"
+                ? "iOS"
+                : data.platform === "android"
+                  ? "Android"
+                  : data.platform || "N/A",
           });
           return acc;
         },
         {}
       );
 
-      console.log("All User IDs with Subscriptions:", Object.keys(subscriptionsByUserId));
+      // Debug: Log all IDs found in subscriptions
+      console.log("Subscription User IDs:", Object.keys(subscriptionsByUserId));
 
       const userList = userSnapshot.docs.map((doc, index) => {
         const data = doc.data();
-        const userId = doc.id;
-        const userUid = data.uid || ""; // Check if there's a uid field
+        const docId = doc.id;
 
-        // Try to find subscriptions by doc.id OR uid
-        const userSubs = subscriptionsByUserId[userId] || subscriptionsByUserId[userUid] || [];
+        let userSubs = [];
+
+        // Strategy 1: Match by Document ID (Most common)
+        if (subscriptionsByUserId[docId]) {
+          userSubs = subscriptionsByUserId[docId];
+        }
+        // Strategy 2: Match by 'uid' field in user doc
+        else if (data.uid && subscriptionsByUserId[data.uid]) {
+          userSubs = subscriptionsByUserId[data.uid];
+        }
+        // Strategy 3: Match by 'userId' field in user doc (if distinct)
+        else if (data.userId && subscriptionsByUserId[data.userId]) {
+          userSubs = subscriptionsByUserId[data.userId];
+        }
 
         if (userSubs.length > 0) {
-          console.log(`MATCH FOUND for User ${data.name} (ID: ${userId}) - ${userSubs.length} subs`);
-        } else {
-          // console.log(`No subs for User ${userId}`);
+          console.log(`MATCH: User ${data.name} has ${userSubs.length} subscriptions`);
         }
 
         return {
           id: index.toString(),
-          docId: userId,
+          docId: docId,
           name: data.name || "N/A",
           email: data.email || "N/A",
           phoneNumber: data.phoneNumber || "N/A",
-          vehicles: carsByUserId[userId]?.length || 0,
+          vehicles: carsByUserId[docId]?.length || 0,
           active: data.active !== undefined ? data.active : false,
           joiningDate: formatDate(data.joiningDate),
           image: data.image || "",
           lastActive: data.lastActive ? formatDate(data.lastActive) : "N/A",
-          totalVehicles: carsByUserId[userId]?.length.toString() || "0",
+          totalVehicles: carsByUserId[docId]?.length.toString() || "0",
           totalSpots: data.totalSpots || "N/A",
           subscription: data.subscription || "N/A",
-          vehiclesList: carsByUserId[userId] || [],
-          pinnedCarsList: pinnedCarsByUserId[userId] || [],
+          vehiclesList: carsByUserId[docId] || [],
+          pinnedCarsList: pinnedCarsByUserId[docId] || [],
           subscriptionsList: userSubs,
         };
       });
@@ -527,7 +539,7 @@ export default function User() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
@@ -629,6 +641,12 @@ export default function User() {
                             Package Name
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
+                            Package ID
+                          </th>
+                          <th className="border-b-2 border-gray-300 p-2 text-left">
+                            Platform
+                          </th>
+                          <th className="border-b-2 border-gray-300 p-2 text-left">
                             Price
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
@@ -654,6 +672,12 @@ export default function User() {
                             >
                               <td className="border-b border-gray-200 p-2">
                                 {sub.packageName || "N/A"}
+                              </td>
+                              <td className="border-b border-gray-200 p-2">
+                                {sub.packageId || "N/A"}
+                              </td>
+                              <td className="border-b border-gray-200 p-2">
+                                {sub.platform || "N/A"}
                               </td>
                               <td className="border-b border-gray-200 p-2">
                                 {sub.price || "N/A"}
