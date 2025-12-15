@@ -142,6 +142,7 @@ export default function User() {
   };
 
   const openDetailsModal = (user) => {
+    console.log("Selected User Details:", user);
     setSelectedUser(user);
     setIsDetailsModalOpen(true);
     setOpenDropdown(null);
@@ -171,9 +172,17 @@ export default function User() {
     }
 
     if (typeof date === "string") {
-      const parsedDate = new Date(date);
+      // Remove "at " and timezone info for better parsing if needed
+      const cleanDate = date.replace(" at ", " ").split(" UTC")[0];
+      const parsedDate = new Date(cleanDate);
       if (!isNaN(parsedDate.getTime())) {
         return parsedDate.toLocaleDateString("en-US");
+      }
+
+      // Fallback for original string if cleaning didn't help
+      const originalParse = new Date(date);
+      if (!isNaN(originalParse.getTime())) {
+        return originalParse.toLocaleDateString("en-US");
       }
     }
 
@@ -234,16 +243,24 @@ export default function User() {
         });
         return acc;
       }, {});
+      console.log("Total Subscriptions Fetched:", subscriptionsSnapshot.size);
+      if (!subscriptionsSnapshot.empty) {
+        console.log("Sample Subscription Data:", subscriptionsSnapshot.docs[0].data());
+      }
 
       const subscriptionsByUserId = subscriptionsSnapshot.docs.reduce(
         (acc, doc) => {
           const data = doc.data();
-          const userId = data.userId || "N/A";
+          const userId = (data.userId || "N/A").trim();
+
+          // Debugging log for specific user IDs or all
+          // console.log(`Subscription for UserID: ${userId}`); 
+
           if (!acc[userId]) {
             acc[userId] = [];
           }
           acc[userId].push({
-            currentDateTime: formatDate(data.currentDateTime),
+            purchaseDate: formatDate(data.purchaseDate || data.purchaseTimestamp),
             expiryDate: formatDate(data.expiryDate),
             packageId: data.packageId || "N/A",
             packageName: data.packageName || "N/A",
@@ -254,9 +271,21 @@ export default function User() {
         {}
       );
 
+      console.log("All User IDs with Subscriptions:", Object.keys(subscriptionsByUserId));
+
       const userList = userSnapshot.docs.map((doc, index) => {
         const data = doc.data();
         const userId = doc.id;
+        const userUid = data.uid || ""; // Check if there's a uid field
+
+        // Try to find subscriptions by doc.id OR uid
+        const userSubs = subscriptionsByUserId[userId] || subscriptionsByUserId[userUid] || [];
+
+        if (userSubs.length > 0) {
+          console.log(`MATCH FOUND for User ${data.name} (ID: ${userId}) - ${userSubs.length} subs`);
+        } else {
+          // console.log(`No subs for User ${userId}`);
+        }
 
         return {
           id: index.toString(),
@@ -274,7 +303,7 @@ export default function User() {
           subscription: data.subscription || "N/A",
           vehiclesList: carsByUserId[userId] || [],
           pinnedCarsList: pinnedCarsByUserId[userId] || [],
-          subscriptionsList: subscriptionsByUserId[userId] || [],
+          subscriptionsList: userSubs,
         };
       });
 
@@ -420,11 +449,10 @@ export default function User() {
                   </Td>
                   <Td className="px-2 py-3 whitespace-nowrap text-sm text-gray-500 text-center">
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        user.active
-                          ? "bg-red-100 text-red-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs ${user.active
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+                        }`}
                     >
                       {user.active ? "Suspended" : "Active"}
                     </span>
@@ -564,11 +592,10 @@ export default function User() {
                   <p className="flex justify-between">
                     <span>Status:</span>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        selectedUser?.active
-                          ? "bg-red-100 text-red-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs ${selectedUser?.active
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+                        }`}
                     >
                       {selectedUser?.active ? "Suspended" : "Active"}
                     </span>
@@ -605,7 +632,7 @@ export default function User() {
                             Price
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
-                            Current Date Time
+                            Purchase Date
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
                             Expiry Date
@@ -632,7 +659,7 @@ export default function User() {
                                 {sub.price || "N/A"}
                               </td>
                               <td className="border-b border-gray-200 p-2">
-                                {sub.currentDateTime || "N/A"}
+                                {sub.purchaseDate || "N/A"}
                               </td>
                               <td className="border-b border-gray-200 p-2">
                                 {sub.expiryDate || "N/A"}
@@ -780,7 +807,7 @@ export default function User() {
                               </td>
                               <td className="border-b border-gray-200 p-2">
                                 {pin.selectedCar.images &&
-                                pin.selectedCar.images.length > 0 ? (
+                                  pin.selectedCar.images.length > 0 ? (
                                   <motion.img
                                     src={pin.selectedCar.images[0]}
                                     alt="Car"
@@ -901,11 +928,10 @@ export default function User() {
           </span>
           <div className="flex space-x-2">
             <button
-              className={`px-3 py-1 rounded transition-colors ${
-                currentPage === 1
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "text-black hover:bg-gray-200"
-              }`}
+              className={`px-3 py-1 rounded transition-colors ${currentPage === 1
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-black hover:bg-gray-200"
+                }`}
               onClick={() => currentPage > 1 && paginate(currentPage - 1)}
               disabled={currentPage === 1}
             >
@@ -916,11 +942,10 @@ export default function User() {
               (number) => (
                 <button
                   key={number}
-                  className={`px-3 py-1 rounded transition-colors ${
-                    currentPage === number
-                      ? "bg-[#00A085] text-white"
-                      : "text-black hover:bg-gray-200"
-                  }`}
+                  className={`px-3 py-1 rounded transition-colors ${currentPage === number
+                    ? "bg-[#00A085] text-white"
+                    : "text-black hover:bg-gray-200"
+                    }`}
                   onClick={() => paginate(number)}
                 >
                   {number}
@@ -929,11 +954,10 @@ export default function User() {
             )}
 
             <button
-              className={`px-3 py-1 rounded transition-colors ${
-                currentPage === totalPages
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "text-black hover:bg-gray-200"
-              }`}
+              className={`px-3 py-1 rounded transition-colors ${currentPage === totalPages
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-black hover:bg-gray-200"
+                }`}
               onClick={() =>
                 currentPage < totalPages && paginate(currentPage + 1)
               }

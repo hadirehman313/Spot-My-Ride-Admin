@@ -74,7 +74,7 @@ export default function Login() {
           setIsAuthenticated(true)
           setUserData({ uid: userId, email: values.email })
 
-          toast.success('Login successful!')
+        
           setTimeout(() => router.push('/dashboard'), 800)
         } else {
           toast.error('Invalid email or password', { autoClose: 3000 })
