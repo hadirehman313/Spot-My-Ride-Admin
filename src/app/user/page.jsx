@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 import { CiSearch } from "react-icons/ci";
 import Modal from "@mui/material/Modal";
 import { ToastContainer, toast } from "react-toastify";
-
 import { db } from "../../config/Firebase";
 import {
   collection,
@@ -246,19 +245,26 @@ export default function User() {
         (acc, doc) => {
           const data = doc.data();
           // Ensure we trim whitespace and handle potential missing IDs
-          const userId = (data.userId || "N/A").trim();
+          const userId2 = (data.userId2 || data.userId || "N/A").trim();
 
-          if (!acc[userId]) {
-            acc[userId] = [];
+          if (!acc[userId2]) {
+            acc[userId2] = [];
           }
-          acc[userId].push({
+          acc[userId2].push({
             // MAPPING BASED ON UPLOADED IMAGE:
-            purchaseDate: formatDate(data.purchaseDate || data.purchaseTimestamp),
+            purchaseDate: formatDate(
+              data.purchaseDate || data.purchaseTimestamp
+            ),
             expiryDate: formatDate(data.expiryDate),
-            packageId: data.packageId || "N/A",
-            packageName: data.packageName || "N/A",
-            price: data.price || "N/A",
-            packageId: data.packageId || "N/A",
+            packageId: (data.packageId || "")
+              .toString()
+              .toLowerCase()
+              .includes("24h")
+              ? "24 Hours"
+              : (data.packageId || "").toString().toLowerCase().includes("monthly") ||
+                (data.packageId || "").toString().toLowerCase().includes("1m")
+                ? "Monthly"
+                : data.packageId || "N/A",
             packageName: data.packageName || "N/A",
             price: data.price || "N/A",
             platform:
@@ -290,13 +296,15 @@ export default function User() {
         else if (data.uid && subscriptionsByUserId[data.uid]) {
           userSubs = subscriptionsByUserId[data.uid];
         }
-        // Strategy 3: Match by 'userId' field in user doc (if distinct)
-        else if (data.userId && subscriptionsByUserId[data.userId]) {
-          userSubs = subscriptionsByUserId[data.userId];
+        // Strategy 3: Match by 'userId2' field in user doc (if distinct)
+        else if (data.userId2 && subscriptionsByUserId[data.userId2]) {
+          userSubs = subscriptionsByUserId[data.userId2];
         }
 
         if (userSubs.length > 0) {
-          console.log(`MATCH: User ${data.name} has ${userSubs.length} subscriptions`);
+          console.log(
+            `MATCH: User ${data.name} has ${userSubs.length} subscriptions`
+          );
         }
 
         return {
@@ -641,7 +649,7 @@ export default function User() {
                             Package Name
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
-                            Package ID
+                            Package Type
                           </th>
                           <th className="border-b-2 border-gray-300 p-2 text-left">
                             Platform
